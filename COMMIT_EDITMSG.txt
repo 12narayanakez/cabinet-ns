@@ -1,0 +1,19 @@
+
+# Please enter the commit message for your changes. Lines starting
+# with '#' will be ignored, and an empty message aborts the commit.
+#
+# On branch main
+# Your branch is up to date with 'origin/main'.
+#
+# Changes to be committed:
+#	modified:   Code.gs
+#	modified:   admin.html
+#	modified:   admin.js
+#	modified:   app.js
+#	new file:   candidates-data.js
+#	modified:   index.html
+#	new file:   netlify-upload.zip
+#	modified:   results.html
+#	modified:   results.js
+#	new file:   site-config.js
+#
