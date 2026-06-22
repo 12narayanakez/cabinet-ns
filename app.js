@@ -22,7 +22,6 @@ const state = {
   candidatesData: null,
   studentName: '',
   admissionNo: '',
-  branch: '',
   votes: {},          // { "Head Boy": "Kaggadasapura A", ... }
   currentStep: 1,
   isSubmitting: false,
@@ -43,10 +42,8 @@ const els = {
   studentForm:     () => document.getElementById('studentForm'),
   studentName:     () => document.getElementById('studentName'),
   admissionNo:     () => document.getElementById('admissionNo'),
-  branchSelect:    () => document.getElementById('branchSelect'),
   nameError:       () => document.getElementById('nameError'),
   admNoError:      () => document.getElementById('admNoError'),
-  branchError:     () => document.getElementById('branchError'),
   proceedBtn:      () => document.getElementById('proceedBtn'),
   voterInfoStrip:  () => document.getElementById('voterInfoStrip'),
   voterNameDisp:   () => document.getElementById('voterNameDisplay'),
@@ -71,7 +68,6 @@ const els = {
 // ── INIT ───────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', async () => {
   await loadCandidatesData();
-  populateBranchDropdown();
   checkVotingStatus();
   bindEvents();
 });
@@ -90,19 +86,6 @@ async function loadCandidatesData() {
     showGlobalAlert('error', 'Failed to load election configuration. Please refresh the page.');
     console.error('Failed to load candidates.json:', err);
   }
-}
-
-function populateBranchDropdown() {
-  const select = els.branchSelect();
-  if (!state.candidatesData) return;
-
-  const branches = [...state.candidatesData.branches].sort();
-  branches.forEach(branch => {
-    const opt = document.createElement('option');
-    opt.value = branch;
-    opt.textContent = branch;
-    select.appendChild(opt);
-  });
 }
 
 async function checkVotingStatus() {
@@ -145,7 +128,6 @@ async function handleStep1Submit(e) {
 
   const name   = els.studentName().value.trim();
   const admNo  = els.admissionNo().value.trim();
-  const branch = els.branchSelect().value;
 
   clearErrors();
 
@@ -158,7 +140,6 @@ async function handleStep1Submit(e) {
     setError('admNoError', 'Admission number must be exactly 7 digits.');
     valid = false;
   }
-  if (!branch) { setError('branchError', 'Please select your branch.'); valid = false; }
 
   if (!valid) return;
 
@@ -181,7 +162,6 @@ async function handleStep1Submit(e) {
     // All good — proceed to step 2
     state.studentName = name;
     state.admissionNo = admNo;
-    state.branch      = branch;
     state.votes       = {};
 
     renderCandidates();
@@ -192,7 +172,6 @@ async function handleStep1Submit(e) {
     if (CONFIG.SCRIPT_URL.includes('YOUR_SCRIPT_ID_HERE')) {
       state.studentName = name;
       state.admissionNo = admNo;
-      state.branch      = branch;
       state.votes       = {};
       renderCandidates();
       showGlobalAlert('warning', 'Demo mode: Google Sheets not connected. Configure SCRIPT_URL in app.js to enable live data.');
@@ -216,24 +195,20 @@ function renderCandidates() {
   grid.innerHTML = '';
 
   els.voterNameDisp().textContent  = state.studentName;
-  els.voterBranchDisp().textContent = state.branch;
+  els.voterBranchDisp().textContent = state.admissionNo;
   els.totalPositions().textContent = positions.length;
   updateProgress();
 
   positions.forEach(position => {
-    const candidates = getCandidatesFor(position, state.branch, customCandidates);
+    const candidates = getCandidatesFor(position, customCandidates);
     const card = buildPositionCard(position, candidates);
     grid.appendChild(card);
   });
 }
 
-function getCandidatesFor(position, branch, customCandidates) {
-  // Check for custom candidates
-  if (customCandidates && customCandidates[branch] && customCandidates[branch][position]) {
-    return customCandidates[branch][position];
-  }
-  // Default: [Branch] A/B/C/D
-  return CONFIG.CANDIDATE_LETTERS.map(l => `${branch} ${l}`);
+function getCandidatesFor(position, customCandidates) {
+  // Default: A/B/C/D
+  return CONFIG.CANDIDATE_LETTERS.map(l => `${position} ${l}`);
 }
 
 function buildPositionCard(position, candidates) {
@@ -338,10 +313,6 @@ function renderReview() {
       <span class="review-meta-label">Admission No.</span>
       <span class="review-meta-value">${escapeHtml(state.admissionNo)}</span>
     </div>
-    <div class="review-meta-item">
-      <span class="review-meta-label">Branch</span>
-      <span class="review-meta-value">${escapeHtml(state.branch)}</span>
-    </div>
   `;
 
   const grid = els.reviewGrid();
@@ -372,7 +343,6 @@ async function handleSubmitVote() {
     action:             'vote',
     name:               state.studentName,
     admissionNo:        state.admissionNo,
-    branch:             state.branch,
     headBoy:            state.votes['Head Boy']              || '',
     headGirl:           state.votes['Head Girl']             || '',
     sportsCaptain:      state.votes['Sports Captain']        || '',
@@ -410,7 +380,6 @@ function showSuccessScreen() {
   meta.innerHTML = `
     <strong>Voted as:</strong> ${escapeHtml(state.studentName)}<br>
     <strong>Admission No.:</strong> ${escapeHtml(state.admissionNo)}<br>
-    <strong>Branch:</strong> ${escapeHtml(state.branch)}<br>
     <strong>Timestamp:</strong> ${now.toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })}
   `;
 
@@ -471,13 +440,11 @@ function resetAll() {
 
   state.studentName = '';
   state.admissionNo = '';
-  state.branch      = '';
   state.votes       = {};
   state.isSubmitting = false;
 
   els.studentName().value   = '';
   els.admissionNo().value   = '';
-  els.branchSelect().value  = '';
   els.positionsGrid().innerHTML = '';
   clearErrors();
   hideAlert(els.globalAlert());
@@ -537,19 +504,17 @@ function setError(id, msg) {
   if (!el) return;
   el.textContent = msg;
   // Also mark the associated input as error
-  const inputId = id.replace('Error', '').replace('admNo', 'admission').replace('branch', 'branch');
   const input = id === 'nameError'   ? els.studentName()  :
-                id === 'admNoError'  ? els.admissionNo()  :
-                id === 'branchError' ? els.branchSelect()  : null;
+                id === 'admNoError'  ? els.admissionNo()  : null;
   if (input) input.classList.add('error');
 }
 
 function clearErrors() {
-  ['nameError','admNoError','branchError'].forEach(id => {
+  ['nameError','admNoError'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.textContent = '';
   });
-  [els.studentName(), els.admissionNo(), els.branchSelect()].forEach(el => {
+  [els.studentName(), els.admissionNo()].forEach(el => {
     if (el) el.classList.remove('error');
   });
 }
